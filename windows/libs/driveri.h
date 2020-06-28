@@ -5,7 +5,7 @@
 #include<map>
 
 
-#define globalbuflen 2048
+#define GLOBALBUFFERLEN 2048
 extern UCHAR globalbuf[];
 
 enum NBSDRV_PORTTYPE {
@@ -66,13 +66,14 @@ struct driveri {
 #endif // __CPLUSPLUS
 };
 
-class selfserviceconnect :public SockExTCP {
+class selfServiceConnect :public SockExTCP {
 public:
     //ChnlTCP(SOCKADDR_IN* peeraddr, char* token);
     //virtual ~ChnlTCP();
     virtual int onConnect(bool bConnect);
     //bool notUsing();
-    virtual int onRcv(int n);
+    virtual int onRcv(int len);
+    //static void FwdtoDataChnl(SockEx* rcvsock, SOCKET datachnl, char peerFwdId, char fwdidlen, char* rcvbuf);
 
     char peerFwdId[_FWDID_MAX_LEN];//
     char fwdidlen;
@@ -91,8 +92,8 @@ public:
     static int proDrvConnect(SockEx* esock, StarTlv& tlvs);
     static int proDrvData(SockEx* esock, StarTlv& tlvs);
    
-    static map<SOCKET,selfserviceconnect*>mapserandpc;
-  
+    static map<SOCKET,selfServiceConnect*>mapserandpc;
+   
     static int onConnect(bool bConnect);
 };
 extern SoftFwder* fwder;

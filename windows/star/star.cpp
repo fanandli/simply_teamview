@@ -35,7 +35,7 @@ int main(int argc, char* argv[]) {
 
   /* TODO: 修改mac地址，从入参中获得mac地址
   memcpy(g_attr.mac, */
-
+  memcpy(g_attr.mac, argv, sizeof(argv));
   sockthread mainthread(true);
   new driveri(); //must init driveri first, because CtrlChnl depend driveri
   new CtrlChnl();
@@ -241,15 +241,7 @@ Client::Client(json_object* cltcfg) {
     //https://blog.csdn.net/hs_guanqi/article/details/2258558
     sscanf(json_object_get_string(item), "%02X%02X%02X%02X%02X%02X", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
   } else {
-    char* ifname;
-#ifdef _ROUTER_
-    ifname = g_attr.getintragwif();
-#else
-    char gwsif[IF_NAMESIZE];
-    ifname = gwsif;
-    driveri::GetGateWayAndIfIP(gwsif, nullptr);
-#endif
-    driveri::getIfMac(ifname, (char*)mac);
+        memcpy(mac, g_attr.mac, sizeof(g_attr.mac));
   }
 
   bAutoPower = 1;
@@ -989,7 +981,7 @@ StarAttr::StarAttr() {
 
   bestip = 0;
   bestip6 = IN6ADDR_ANY_INIT;
-  driveri::getIfMac(g_attr.getintragwif(), (char*)mac);
+  //driveri::getIfMac(g_attr.getintragwif(), (char*)mac);
   DBG("mac:%02x%02x%02x%02x%02x%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
   INIT_LIST_HEAD(&clients);

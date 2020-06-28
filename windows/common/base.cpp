@@ -1,5 +1,7 @@
 #include "base.h"
 
+
+
 char* logfilename;
 void openlog(char* filename, int level, int unknown) {
   logfilename = filename;

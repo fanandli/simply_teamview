@@ -2,7 +2,6 @@
 #include <vector>
 #include <map>
 #include "base.h"
-
 #include "json-c/json.h"
 #include "unidef.h"
 #include "sockex.h"
@@ -16,9 +15,9 @@ struct IpPort {//ÀïÃæ´æÉêÇëµ½µÄÔ¶¶ËµÄip+port
 };
 
 struct IpPort IpPortt[65540];//ÕâÀïµÄÏÂ±êÊÇ±¾µØport
-UCHAR globalbuf[globalbuflen];
+UCHAR globalbuf[GLOBALBUFFERLEN];
 
-map<SOCKET, selfserviceconnect*>SoftFwder::mapserandpc;
+map<SOCKET, selfServiceConnect*>SoftFwder::mapserandpc;
 
 //È«¾Ö±äÁ¿ÔÚÍ¬Ò»¸öÎÄ¼şÖĞ¶¨Òå£¬°´ÕÕÏÈºóË³Ğò³õÊ¼»¯£»È«¾Ö±äÁ¿ÔÚÔËĞĞÇ°³õÊ¼»¯£»ËùÒÔdriveri²¿·ÖÈ«²¿¶¨Òå³ÉÈ«¾Ö±äÁ¿ÊÇ¿ÉĞĞµÄ
 driveri::driveri() {
@@ -26,8 +25,6 @@ driveri::driveri() {
 	tlvcbs[StarTlv::RGETDATACHNLADDR] = TlvSynReplyCb;
 	tlvcbs[StarTlv::DRV_CONNECTION] = SoftFwder::proDrvConnect;
 	tlvcbs[StarTlv::DRV_DATA] = SoftFwder::proDrvData;
-
-
 }
 
 /* TODO: ÔİÊ±¿ÉÄÜ²»ĞèÒªÊµÏÖ */
@@ -49,12 +46,15 @@ UINT32 driveri::GetGateWayAndIfIP(char* ifname, UINT32* sip) {
 }
 /* TODO: ÔİÊ±²»ĞèÒªÊµÏÖ */
 void driveri::getIfMac(char* ifName, char* mac) {
-	mac[0] = 0xB4;
+	
+	/*mac[0] = 0xB4;
 	mac[1] = 0x2E;
 	mac[2] = 0x99;
 	mac[3] = 0xE2;
 	mac[4] = 0x7B;
 	mac[5] = 0x46;
+    */
+
 }
 
 /* TODO: ÔİÊ±²»ĞèÒªÊµÏÖ */
@@ -81,7 +81,6 @@ int driveri::getPublicAddrr(UINT16 port, SockEx* ctrlchnl, SOCKADDR_IN* intraadd
 	//Èç¹ûÃ»ÓĞÉêÇë£¬¿´ÊÇ·ñÓĞÊı¾İÍ¨µÀ£»Èç¹û²»´æÔÚÊı¾İÍ¨µÀ£¬Ôò´Ó¿ØÖÆÍ¨µÀ·¢ËÍÊı¾İÍ¨µÀÉêÇëÏûÏ¢
 	//Í¨¹ıÊı¾İÍ¨µÀ·¢ËÍ¹«ÍøµØÖ·ÉêÇëÏûÏ¢
 	//´æ´¢port/ÄÚÍøµØÖ·/¹«ÍøµØÖ·¶ÔÓ¦¹ØÏµ
-
 	StarTlv request(StarTlv::GETDATACHNLADDR);//³õÊ¼»¯Ò»¸ötlv
 	StarTlv requesttwo(StarTlv::REQUESTPUBLICADDR);
 	sockthread::pack_synheader(&request);
@@ -117,7 +116,7 @@ int driveri::getPublicAddrr(UINT16 port, SockEx* ctrlchnl, SOCKADDR_IN* intraadd
 			NBS_CREATESOCKADDR(localAddr,0, 0);
 			bind(SET->sock, (SOCKADDR*)&localAddr, sizeof(SOCKADDR_IN));//
 			SET->ConnectEx((struct sockaddr*)addr, requesttwo.get_final(), requesttwo.total);//½¨Á¢Êı¾İÍ¨µÀ£¬
-			cout << addr;
+			//cout << addr;
 			char* msgtwo = sockthread::wait(4);
 			if (msgtwo == nullptr) {
 				DBG("rrequest nil");
@@ -133,7 +132,6 @@ int driveri::getPublicAddrr(UINT16 port, SockEx* ctrlchnl, SOCKADDR_IN* intraadd
 			//´æ´¢ip + port
 			//portÊÇ±¾µØµÄ
 			//sin_portÊÇÔ¶¶ËµÄ
-
 			//port = addrtwo->sin_port;
 			//IpPortt[i].ip = addrtwo->sin_addr;
 			IpPortt[port].ip = addrtwo->sin_addr;
@@ -141,7 +139,6 @@ int driveri::getPublicAddrr(UINT16 port, SockEx* ctrlchnl, SOCKADDR_IN* intraadd
 			dataptr = SET;
 		}
 	}
-	//
 	return 0;
 }
 
@@ -178,7 +175,7 @@ int SoftFwder::proDrvConnect(SockEx* esock, StarTlv& tlvs) {
 		char* savetlv = tlvs.get_tlv(StarTlv::DRV_CONNECTION_LOCALFWDID);//Õâ¸öÊÇ·şÎñÆ÷·¢¸øÎÒµÄ£¨Ô¶¶Ë£©forwdid
 		int tlvlen = tlvs.get_len(savetlv);
 		
-		selfserviceconnect* SET = new selfserviceconnect();//SETÀïÓĞ±¾µØÁ¬½ÓµÄsockid
+		selfServiceConnect* SET = new selfServiceConnect();//SETÀïÓĞ±¾µØÁ¬½ÓµÄsockid
 		SOCKADDR_IN* addr = (SOCKADDR_IN*)tlvs.get_tlv(StarTlv::DRV_CONNECTION_ADDR);//get_tlvº¯ÊıÊÇÓÃÀ´¸ÉÂïµÄ£¿
 		addr->sin_family = AF_INET;
 		NBS_CREATESOCKADDR(localAddr, 0, 0);
@@ -205,15 +202,15 @@ int SoftFwder::proDrvConnect(SockEx* esock, StarTlv& tlvs) {
 	//½«ÊÕµ½µÄÏûÏ¢¼ÓÉÏsocketidµÄ¶ÔÓ¦¹ØÏµ£¬È»ºó·¢ËÍ¸ø·şÎñÆ÷£¬Í¨¹ıÊı¾İÍ¨µÀ£¿->ÔÚonconnectÂß¼­Àï
 	return 0;
 }
-int selfserviceconnect::RcvEx(UCHAR* rcvbuf) {
+int selfServiceConnect::RcvEx(UCHAR* rcvbuf) {
 	DWORD flags = 0; //must initial equal 0, orelse, no message rcv by workthread
-	SockExOL* ov = new SockExOL(this, SockExOL::RCV, (char*)rcvbuf, globalbuflen);
+	SockExOL* ov = new SockExOL(this, SockExOL::RCV, (char*)rcvbuf+ 12 + 1 + fwdidlen, GLOBALBUFFERLEN - 12 - 1 - fwdidlen);
 	int rtn = WSARecv(sock, &ov->wsabuffer, 1, NULL, &flags, &ov->overlapped, NULL);
-	DBG("selfserviceconnect recv:sock:%d, %d, %d", sock, rtn, WSAGetLastError());
+	//DBG("selfserviceconnect recv: sock: %d, %d, %d", sock, rtn, WSAGetLastError());
 	return 0;
 }
 
-int selfserviceconnect::onConnect(bool bConnect) {
+int selfServiceConnect::onConnect(bool bConnect) {
 	if (!bConnect) {//Èç¹ûÓë±ÈÈç3389½¨Á¢Á¬½Ó²»³É¹¦
 		//this->SockExTCP::onConnect(bConnect);
 		StarTlv request(StarTlv::GETDATACHNLADDR);
@@ -245,17 +242,35 @@ int SoftFwder::proDrvData(SockEx* esock, StarTlv& tlvs) {//Õâ¸öÊÇÓÃÀ´´¦Àí´ÓÊı¾İÍ
 	return 0;
 }
 
-int selfserviceconnect::onRcv(int n) {//½ÓÊÕport·¢À´µÄ
-	StarTlv request(StarTlv::DRV_DATA);
+int selfServiceConnect::onRcv(int len) {//½ÓÊÕport·¢À´µÄ
+	//StarTlv request(StarTlv::DRV_DATA);
 	//½«tlv×éÉÏÈ¥
 	//½«payload×éÉÏÈ¥
 	//·¢ËÍ¸ø¶ÔÓ¦µÄ¶Ë¿Ú£¿´ÓÄÄÀï»ñÈ¡Õâ¸ö£¿ÓÃrecvº¯Êı½ÓÊÕ»ñÈ¡Âğ£¿
-	request.pack_atom(StarTlv::DRV_DATA_FWDID, sizeof(peerFwdId), (char*)&(peerFwdId));//×étlv
+	//request.pack_atom(StarTlv::DRV_DATA_FWDID, sizeof(peerFwdId), (char*)&(peerFwdId));//×étlv
 	//request.pack_atom(StarTlv::DRV_DATA_FWDID, sizeof(mapserandpc), (char*)&(mapserandpc));//×étlv
-	request.pack_atom(StarTlv::DRV_DATA_PAYLOAD, n, (char*)globalbuf);//×épayload,payloadÔÚrcvbufÖĞ
+	//request.pack_atom(StarTlv::DRV_DATA_PAYLOAD, n, (char*)globalbuf);//×épayload,payloadÔÚrcvbufÖĞ
 
-	send(dataptr->sock, request.get_final(), request.total, MSG_NOSIGNAL);//·¢¸øÊı¾İÍ¨µÀ
+	int headlen = 12 + 1 + fwdidlen; // sizeof(_tlv)*3 + 1 subtlv end with 0 + fwdidlen
+	_tlv* msg = (_tlv*)globalbuf;
+	msg->type = StarTlv::DRV_DATA;
 
+	//subtlv fwdid
+	_tlv* subtlv = msg + 1;
+	subtlv->type = StarTlv::DRV_DATA_FWDID;
+	subtlv->len = htons(fwdidlen + 1);
+	subtlv += 1;
+	memcpy(subtlv, peerFwdId, fwdidlen);
+	
+	//subtlv payload
+	subtlv = (_tlv*)((char*)subtlv + fwdidlen + 1);
+	subtlv->type = StarTlv::DRV_DATA_PAYLOAD;
+	subtlv->len = htons(len + 1);
+
+	msg->len = htons(headlen - sizeof(_tlv) + len);//¸üĞÂmsg len
+
+	int sendreturn = send(dataptr->sock, (char*)msg, len+headlen, MSG_NOSIGNAL);//·¢¸øÊı¾İÍ¨µÀ
+	//cout << "selfServiceConnect::onRcv send return: " << sendreturn << endl;
 	RcvEx(globalbuf);//
 	//procTlvMsg(rcvbuf, msglen);
 	return 0;

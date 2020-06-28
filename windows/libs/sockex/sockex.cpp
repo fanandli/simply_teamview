@@ -76,7 +76,7 @@ int SockExTCP::RcvEx(UCHAR* rcvbuf, int rcvmax) {
   DWORD flags = MSG_PEEK; //must initial equal 0, orelse, no message rcv by workthread
   SockExOL* ov = new SockExOL(this, SockExOL::RCV, (char*)rcvbuf, rcvmax);
   int rtn = WSARecv(sock, &ov->wsabuffer, 1, NULL, &flags, &ov->overlapped, NULL);
-  DBG("wsarcvPEEK:sock:%d, %d, %d", sock, rtn, WSAGetLastError());
+ // DBG("wsarcvPEEK:sock:%d, %d, %d", sock, rtn, WSAGetLastError());
   return 0;
 }
 
@@ -143,15 +143,15 @@ int SockExTCP::onConnect(bool bConnect) {
 }
 
 int SockExTCP::onRcv(int n) {
-  cout << "sockextcp::onrcv " << n <<endl;
+  //cout << "sockextcp::onrcv " << n <<endl;
   if (n < sizeof(_tlv)) {
     RcvEx(buf);
-    cout << "sockextcp::onrcv _tlv null" << endl;
+   //cout << "sockextcp::onrcv _tlv null" << endl;
     return 0;
   }
 
   int msglen = ntohs(((struct _tlv*)buf)->len) + sizeof(_tlv);
-  cout << "sockextcp::msglen " << msglen << endl;
+  //cout << "sockextcp::msglen " << msglen << endl;
   char* rcvbuf = new char[msglen];
   if (recv(sock, rcvbuf, msglen, MSG_WAITALL) < 0) {
     DBG("wsarcvPEEK:sock:%d, %d", sock, WSAGetLastError());
@@ -168,8 +168,8 @@ end:
 int SockEx::procTlvMsg(char* data, int len) { //only reserved for starService.cpp
   struct _tlv* tlv = (struct _tlv*)data;
 
-  cout << "sockex::protlvmsg type:" << (int)tlv->type;
-  cout << ", sockex::protlvmsg len:" << ntohs(tlv->len)<<endl;
+  //cout << "sockex::protlvmsg type: " << (int)tlv->type;
+  //cout << ", sockex::protlvmsg len: " << ntohs(tlv->len)<<endl;
   while (len >= sizeof(struct _tlv)) {
     if (tlv->type < StarTlv::MIN || tlv->type > StarTlv::MAX) {
       return -1;
@@ -263,7 +263,7 @@ DWORD WINAPI sockRoutine(_In_ LPVOID lpParameter) {
     SockExOL::OP_TYPE op = ol->op;
     delete ol;
 
-    LOG("ERR:GetQueue OK:%d", op);
+   // LOG("ERR:GetQueue OK:%d", op);
     //rcv len = 0 indicate remote close socket; and happened in 2 way:
 //1, remote socket shutdown 2, local tcp enable keepalive option, and keepalive detect the tcp not working
 
