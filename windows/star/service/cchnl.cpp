@@ -314,7 +314,7 @@ char* CtrlChnl::proQuerySvcAddr(json_object* msg, json_object* reply) {
   char* domain = (char*)json_object_get_string(item);
   json_object_object_get_ex(msg, "svctype", &item);
   char* svctype = (char*)json_object_get_string(item);
-  
+
   DBG("proQuerySvcAddr:%s, %s", domain, svctype);
   service* svc = service::get(domain, svctype);
   if (svc != nullptr) {
@@ -334,6 +334,25 @@ char* CtrlChnl::proQuerySvcAddr(json_object* msg, json_object* reply) {
         DBG("CTRLIP, %s:%d", addrstr, interAddr.sin_port);
         json_object_object_add(reply, "ip", json_object_new_string(addrstr));
         json_object_object_add(reply, "port", json_object_new_int(ntohs(interAddr.sin_port)));
+
+        if (json_object_object_get_ex(msg, "cltip6", &item)) {//如果客户端中有ip6
+            char addrstr6[INET6_ADDRSTRLEN];
+            char* cltip6 = (char*)json_object_get_string(item);
+            inet_ntop(AF_INET, &cltip6, addrstr6, INET6_ADDRSTRLEN);
+
+            json_object_object_get_ex(msg, "cltport", &item);
+            int cltport = json_object_get_int(item);
+
+            sockaddr_in6 cltaddr6;
+            cltaddr6.sin6_port = cltport;
+            sockaddr_in6* cltip6 = &cltaddr6;
+
+            json_object_object_add(reply, "ip6", json_object_new_string(addrstr6));
+            json_object_object_add(reply, "port6", json_object_new_int(ntohs(cltaddr6.sin6_port)));
+            driveri::sendtcp6(&cltaddr6, (sockaddr_in6*)&g_attr.bestip6);
+
+        }
+
       }
       LOG("--EX:get svc");
     }

@@ -27,15 +27,48 @@ void sig_alrm(int signo) {
   return;
 }
 
+void sendToTsinghua() {
+    if (IN6_IS_ADDR_UNSPECIFIED(&g_attr.bestip6)) {
+        sockthread::wait(0);
+
+        struct hostent* ht = gethostbyname("ipv6.tsinghua.edu.cn");
+        if (ht != nullptr) {
+            SOCKET sock = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, 0);
+            sockaddr_in6 addr6;
+            socklen_t len = sizeof(addr6);
+            addr6.sin6_family = AF_INET6;
+            memcpy(&addr6.sin6_addr, (in6_addr*)ht->h_addr, sizeof(in6_addr));
+            addr6.sin6_port = htons(80);
+            if (connect(sock, (sockaddr*)&addr6, sizeof(sockaddr_in6)) == 0) {
+                getsockname(sock, (sockaddr*)&addr6, &len);
+                memcpy(&g_attr.bestip6, &addr6.sin6_addr, sizeof(in6_addr));//将获取到的ip6地址复制到这里
+                DBG("get localipv6 ok: ");
+            }
+            closesocket(sock);
+            char addrstr[INET6_ADDRSTRLEN];
+            DBG("my ipv6:%s, errno:%s", inet_ntop(AF_INET6, &addr6.sin6_addr, addrstr, INET6_ADDRSTRLEN), strerror(errno));
+
+        }
+    }
+}
+
+
 int main(int argc, char* argv[]) {
   //daemon(1, 0);
   openlog((char*)"star", LOG_CONS, 0);
   LOG("START VER:%s", VERSION_STR);
+  sendToTsinghua();
   //signal(SIGALRM, sig_alrm);
-
   /* TODO: 修改mac地址，从入参中获得mac地址
   memcpy(g_attr.mac, */
-  memcpy(g_attr.mac, argv, sizeof(argv));
+  //for (int i = 1; i <2 ; i++) {
+    //  cout << argv[i] << endl;
+  //}
+
+  cout << argv[1] << endl;
+  
+  sscanf(argv[1], "%02X%02X%02X%02X%02X%02X", &g_attr.mac[0], &g_attr.mac[1], &g_attr.mac[2], &g_attr.mac[3], &g_attr.mac[4], &g_attr.mac[5]);
+
   sockthread mainthread(true);
   new driveri(); //must init driveri first, because CtrlChnl depend driveri
   new CtrlChnl();

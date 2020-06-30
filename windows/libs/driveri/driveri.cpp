@@ -63,7 +63,24 @@ UINT32 driveri::getIfIP(char* ifname) {
 }
 
 /* TODO: 调试ipv6时实现 */
+//只是为了构建一个五元组，给运营商
+//src是客户端的ip+port
+//dst是自己的ip+port
 void driveri::sendtcp6(sockaddr_in6* src, sockaddr_in6* dst) {
+
+	SOCKET sock = socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0);
+	sockaddr_in6 local;
+	memset(&local, 0, sizeof(local));
+
+	local.sin6_family = AF_INET6;
+	memcpy(&local.sin6_addr, &src->sin6_addr, sizeof(in6_addr));
+
+	local.sin6_port = _DRIVERI_SENDTCP_PORT;
+
+	int rtn = ::bind(sock, (const sockaddr_in6*)&local, sizeof(local));
+
+	dst->sin6_family = AF_INET6;
+	rtn = connect(sock, NULL, NULL, MSG_NOSIGNAL, (sockaddr*)dst, sizeof(sockaddr_in6));
 
 }
 
