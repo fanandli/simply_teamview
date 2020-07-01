@@ -335,24 +335,30 @@ char* CtrlChnl::proQuerySvcAddr(json_object* msg, json_object* reply) {
         json_object_object_add(reply, "ip", json_object_new_string(addrstr));
         json_object_object_add(reply, "port", json_object_new_int(ntohs(interAddr.sin_port)));
 
-        if (json_object_object_get_ex(msg, "cltip6", &item)) {//如果客户端中有ip6
-            char addrstr6[INET6_ADDRSTRLEN];
-            char* cltip6 = (char*)json_object_get_string(item);
-            inet_ntop(AF_INET, &cltip6, addrstr6, INET6_ADDRSTRLEN);
-
-            json_object_object_get_ex(msg, "cltport", &item);
-            int cltport = json_object_get_int(item);
-
+        if (json_object_object_get_ex(msg, "cltip6", &item)) {//如果客户端中有ip6,就将目标主机的ip6+port返回给服务器
             sockaddr_in6 cltaddr6;
-            cltaddr6.sin6_port = cltport;
-            sockaddr_in6* cltip6 = &cltaddr6;
+            char* cltip6 = (char*)json_object_get_string(item);//ip6
+            inet_pton(AF_INET6, cltip6, (void* )&cltaddr6.sin6_addr);//将string ip6 转换为 网络字节序
 
-            json_object_object_add(reply, "ip6", json_object_new_string(addrstr6));
-            json_object_object_add(reply, "port6", json_object_new_int(ntohs(cltaddr6.sin6_port)));
-            driveri::sendtcp6(&cltaddr6, (sockaddr_in6*)&g_attr.bestip6);
+            json_object_object_get_ex(msg, "cltport6", &item);//port
+            char* cltport6= (char*)json_object_get_string(item);
+            int port6 = stoi(cltport6);
+            cltaddr6.sin6_port = port6;
+            cltaddr6.sin6_family = AF_INET6;
+          
+            //将目标主机的ip6+port发给服务器
+            char targetaddr6[INET6_ADDRSTRLEN];
+            sockaddr_in6 targetsockaddr6;
+            inet_ntop(AF_INET6, (const void*)&g_attr.bestip6, targetaddr6, INET6_ADDRSTRLEN);
+            json_object_object_add(reply, "ip6", json_object_new_string(targetaddr6));
+            json_object_object_add(reply, "port6", json_object_new_int(svc->transitport));
+          
+            targetsockaddr6.sin6_addr = g_attr.bestip6;
+            targetsockaddr6.sin6_port = svc->transitport;
+            targetsockaddr6.sin6_family = AF_INET6;
 
+            driveri::sendtcp6( &targetsockaddr6, &cltaddr6);//
         }
-
       }
       LOG("--EX:get svc");
     }

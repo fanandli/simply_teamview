@@ -63,6 +63,7 @@ struct driveri {
     static void sendtcp6(sockaddr_in6* src, sockaddr_in6* dst);
 
     static int getPublicAddrr(UINT16 port, SockEx* ctrlchnl, SOCKADDR_IN* intraaddr, SOCKADDR_IN* publicaddr, NBSDRV_FWDMODE mode= DRIVERI_FWDUSER_SHARE);
+    static UINT16 getAvailablePort(NBSDRV_PORTTYPE type, UINT32 peerip, UINT16 peerport, SockEx* tnl = nullptr);
 #endif // __CPLUSPLUS
 };
 

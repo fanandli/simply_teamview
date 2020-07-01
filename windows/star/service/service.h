@@ -23,17 +23,20 @@ public:
   char type[SERVICE_SVCNAME_SIZE];
   char host[NBS_HOSTNAME_SIZE];
   UINT16 intraport;
+  UINT16 transitport;
+  UINT32 interip;
   UCHAR protocol;
   UCHAR mode; //intermode
+  SockEx* fwdChnl;
   
   /* TODO: 控制面只保留transitport字段，便于存储 */
   //below is fwdinfo
-  struct {
+  /*struct {
     SockEx* fwdChnl;
     UINT32 interip;
     UINT16 interport;
     UINT16 transitport;
-  };
+  };*/
   
   service(Client* clt, char*, char*, UINT16 port, UCHAR protocol, intermode omode = PORTDIFF);
   virtual ~service();

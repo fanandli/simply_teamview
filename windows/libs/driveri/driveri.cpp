@@ -8,6 +8,7 @@
 #include "driver_inner.h"
 #include "tlv.h"
 #include "driveri.h"
+#include "mswsock.h"
 
 struct IpPort {//里面存申请到的远端的ip+port
 	struct in_addr ip;
@@ -66,22 +67,15 @@ UINT32 driveri::getIfIP(char* ifname) {
 //只是为了构建一个五元组，给运营商
 //src是客户端的ip+port
 //dst是自己的ip+port
+extern LPFN_CONNECTEX lpfnConnectEx;
+
 void driveri::sendtcp6(sockaddr_in6* src, sockaddr_in6* dst) {
-
-	SOCKET sock = socket(AF_INET6, SOCK_DGRAM | SOCK_CLOEXEC, 0);
-	sockaddr_in6 local;
-	memset(&local, 0, sizeof(local));
-
-	local.sin6_family = AF_INET6;
-	memcpy(&local.sin6_addr, &src->sin6_addr, sizeof(in6_addr));
-
-	local.sin6_port = _DRIVERI_SENDTCP_PORT;
-
-	int rtn = ::bind(sock, (const sockaddr_in6*)&local, sizeof(local));
+	SockExTCP* s = new SockExTCP();
+	int bindres = ::bind(s->sock, (const sockaddr*)src, sizeof(sockaddr_in6));
 
 	dst->sin6_family = AF_INET6;
-	rtn = connect(sock, NULL, NULL, MSG_NOSIGNAL, (sockaddr*)dst, sizeof(sockaddr_in6));
-
+	SockExOL* ov = new SockExOL(s, SockExOL::CONNECT);
+	lpfnConnectEx(s->sock, (sockaddr*)dst, sizeof(SOCKADDR_IN), NULL, 0, 0, &ov->overlapped);
 }
 
 /* TODO: 根据intraport或transitport获取对应的公网地址
@@ -159,6 +153,53 @@ int driveri::getPublicAddrr(UINT16 port, SockEx* ctrlchnl, SOCKADDR_IN* intraadd
 	return 0;
 }
 
+class TransChnl;
+struct TransInfo_s {
+	SockExTCP* lsn;
+	UINT32 ip;
+	UINT16 port;
+}TransInfo[65535];
+
+class TransChnl:public SockExTCP {
+public:
+	SockExTCP* newAcceptSock(SockExTCP* srv) {
+		TransChnl* esock = new TransChnl();
+		esock->srv = srv;
+		return esock;
+	}
+
+	int onConnect(bool bConn) {
+		UINT16 port = getPort();
+		//通过transInfo获取本地的端口和IP并建立连接
+		//建立socket之间的映射关系
+		return 0;
+	}
+
+	int onRcv(int n) {
+		//发到本地sockex
+		return 0;
+	}
+};
+
+UINT16 driveri::getAvailablePort(NBSDRV_PORTTYPE type, UINT32 peerip, UINT16 peerport, SockEx* tnl) {
+	SOCKET s = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP);
+	sockaddr_in6 addr6;
+	memset(&addr6, 0, sizeof(addr6));
+	addr6.sin6_family = AF_INET6;
+
+	TransChnl* acceptsock = new TransChnl();
+	acceptsock->srv = new SockExTCP(s, (SOCKADDR*)&addr6, sizeof(addr6), true);
+	SockExTCP::AcceptEx(acceptsock);
+	UINT16 port = acceptsock->srv->getPort();
+
+	if (type == DRIVERI_SVCTRANSIT) {
+		TransInfo[port].ip = peerip;
+		TransInfo[port].port = peerport;
+		TransInfo[port].lsn = acceptsock->srv;
+	}
+
+	return port;
+}
 
 /* TODO: 实现一些转发函数
 收到远端发来的新连接建立消息

@@ -8,6 +8,7 @@
 #include "cchnl.h"
 #include "driveri.h"
 
+
 #ifdef _ROUTER_
 #include "relay.h"
 #endif
@@ -29,9 +30,15 @@ void sig_alrm(int signo) {
 
 void sendToTsinghua() {
     if (IN6_IS_ADDR_UNSPECIFIED(&g_attr.bestip6)) {
-        sockthread::wait(0);
+      
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET6;
+        hints.ai_flags = SOCK_STREAM;
+        
 
         struct hostent* ht = gethostbyname("ipv6.tsinghua.edu.cn");
+        int hostres = getaddrinfo("ipv6.tsinghua.edu.cn", "80", &hints, );
         if (ht != nullptr) {
             SOCKET sock = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, 0);
             sockaddr_in6 addr6;
@@ -58,6 +65,7 @@ int main(int argc, char* argv[]) {
   openlog((char*)"star", LOG_CONS, 0);
   LOG("START VER:%s", VERSION_STR);
   sendToTsinghua();
+
   //signal(SIGALRM, sig_alrm);
   /* TODO: 修改mac地址，从入参中获得mac地址
   memcpy(g_attr.mac, */
