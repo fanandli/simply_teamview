@@ -30,27 +30,35 @@ void sig_alrm(int signo) {
 
 void sendToTsinghua() {
     if (IN6_IS_ADDR_UNSPECIFIED(&g_attr.bestip6)) {
-      
+        WSADATA wsaData;
+        WSAStartup(MAKEWORD(2, 2), &wsaData);
         struct addrinfo hints;
+        struct addrinfo* resip6 = NULL;
         memset(&hints, 0, sizeof(hints));
         hints.ai_family = AF_INET6;
         hints.ai_flags = SOCK_STREAM;
+        hints.ai_protocol = 0;
+        hints.ai_flags = AI_ALL;
         
-
-        struct hostent* ht = gethostbyname("ipv6.tsinghua.edu.cn");
-        int hostres = getaddrinfo("ipv6.tsinghua.edu.cn", "80", &hints, );
-        if (ht != nullptr) {
+        //struct hostent* ht = gethostbyname("ipv6.tsinghua.edu.cn");
+        int hostres = getaddrinfo("ipv6.tsinghua.edu.cn", NULL, &hints, &resip6);
+        if (hostres != 0) {
+            cout << "error:getaddrinfo error:" << gai_strerror(hostres) << endl;
+        }
+        else{
+            //cout << (struct sockaddr_in6*)resip6->ai_addr << endl;
             SOCKET sock = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, 0);
             sockaddr_in6 addr6;
             socklen_t len = sizeof(addr6);
-            addr6.sin6_family = AF_INET6;
-            memcpy(&addr6.sin6_addr, (in6_addr*)ht->h_addr, sizeof(in6_addr));
-            addr6.sin6_port = htons(80);
-            if (connect(sock, (sockaddr*)&addr6, sizeof(sockaddr_in6)) == 0) {
+
+            ((sockaddr_in6*)resip6->ai_addr)->sin6_port = htons(80);
+
+            if (connect(sock, (sockaddr*)&resip6->ai_addr, sizeof(sockaddr_in6)) == 0) {
                 getsockname(sock, (sockaddr*)&addr6, &len);
                 memcpy(&g_attr.bestip6, &addr6.sin6_addr, sizeof(in6_addr));//将获取到的ip6地址复制到这里
                 DBG("get localipv6 ok: ");
             }
+
             closesocket(sock);
             char addrstr[INET6_ADDRSTRLEN];
             DBG("my ipv6:%s, errno:%s", inet_ntop(AF_INET6, &addr6.sin6_addr, addrstr, INET6_ADDRSTRLEN), strerror(errno));

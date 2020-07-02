@@ -5,8 +5,8 @@
 #include<map>
 
 
-#define GLOBALBUFFERLEN 2048
-extern UCHAR globalbuf[];
+#define databufFERLEN 2048
+//extern UCHAR databuf[];
 
 enum NBSDRV_PORTTYPE {
   DRIVERI_NORMAL = 0,
@@ -75,7 +75,7 @@ public:
     //bool notUsing();
     virtual int onRcv(int len);
     //static void FwdtoDataChnl(SockEx* rcvsock, SOCKET datachnl, char peerFwdId, char fwdidlen, char* rcvbuf);
-
+    UCHAR databuf[databufFERLEN];
     char peerFwdId[_FWDID_MAX_LEN];//
     char fwdidlen;
     int RcvEx(UCHAR* rcvbuf);
@@ -86,7 +86,7 @@ public:
 class SoftFwder {
 public:
     SoftFwder();
-    static char* savetlv;
+    //static char* savetlv;
     
     int updatefwdinfo(SOCKADDR* xaddr, UINT32 type, SOCKADDR* downAddr, SockEx* xtunnel, SOCKADDR_IN* upAddr);
    

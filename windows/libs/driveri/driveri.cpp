@@ -16,7 +16,7 @@ struct IpPort {//里面存申请到的远端的ip+port
 };
 
 struct IpPort IpPortt[65540];//这里的下标是本地port
-UCHAR globalbuf[GLOBALBUFFERLEN];
+UCHAR databuf[databufFERLEN];
 
 map<SOCKET, selfServiceConnect*>SoftFwder::mapserandpc;
 
@@ -69,6 +69,7 @@ UINT32 driveri::getIfIP(char* ifname) {
 //dst是自己的ip+port
 extern LPFN_CONNECTEX lpfnConnectEx;
 
+//此函数主要是用来向运营商发一个syn，为了就是让运营商有我们的五元组（客户端+目标主机的五元组）
 void driveri::sendtcp6(sockaddr_in6* src, sockaddr_in6* dst) {
 	SockExTCP* s = new SockExTCP();
 	int bindres = ::bind(s->sock, (const sockaddr*)src, sizeof(sockaddr_in6));
@@ -160,42 +161,59 @@ struct TransInfo_s {
 	UINT16 port;
 }TransInfo[65535];
 
-class TransChnl:public SockExTCP {
+//SockExTCP* cltChnlPtr = NULL;
+class TransChnl:public SockExTCP {//用来处理客户端发过来的连接（与客户端发数据的连接）
 public:
-	SockExTCP* newAcceptSock(SockExTCP* srv) {
+	SockExTCP* newAcceptSock(SockExTCP* srv) {//?
 		TransChnl* esock = new TransChnl();
 		esock->srv = srv;
 		return esock;
 	}
 
-	int onConnect(bool bConn) {
+	int onConnect(bool bConn) {//处理客户端与我建立的连接
+
 		UINT16 port = getPort();
 		//通过transInfo获取本地的端口和IP并建立连接
 		//建立socket之间的映射关系
+		//这里的onConnect主要是与3389建立连接
+		sockaddr_in* sock;
+		sock->sin_addr = TransInfo[port].ip;
+		sock->sin_port = TransInfo[port].port;
+		ConnectEx(sock, NULL, sizeof(sock));
+
+		//然后将这个sock与port建立对应关系 --->这个对应关系要传给谁吗？
+
 		return 0;
 	}
 
-	int onRcv(int n) {
+	int onRcv(int n) {//这个是处理客户端发来的数据
 		//发到本地sockex
+		//转发
+
+		//send(sock, payload, tlvs.get_len(payload), MSG_NOSIGNAL);//发送给服务port
+
+		RcvEx(&buf);
 		return 0;
 	}
 };
 
+//分配transitport
 UINT16 driveri::getAvailablePort(NBSDRV_PORTTYPE type, UINT32 peerip, UINT16 peerport, SockEx* tnl) {
 	SOCKET s = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP);
 	sockaddr_in6 addr6;
 	memset(&addr6, 0, sizeof(addr6));
 	addr6.sin6_family = AF_INET6;
 
-	TransChnl* acceptsock = new TransChnl();
-	acceptsock->srv = new SockExTCP(s, (SOCKADDR*)&addr6, sizeof(addr6), true);
-	SockExTCP::AcceptEx(acceptsock);
-	UINT16 port = acceptsock->srv->getPort();
+	TransChnl* acceptsock = new TransChnl();//这个是如果来了socket，就会调用这个socket
+	acceptsock->srv = new SockExTCP(s, (SOCKADDR*)&addr6, sizeof(addr6), true);//生成一个listen 的socket
+	//这个里面的bind就会随机分一个port，作为transitport
+	SockExTCP::AcceptEx(acceptsock);//侦听
+	UINT16 port = acceptsock->srv->getPort();//
 
 	if (type == DRIVERI_SVCTRANSIT) {
 		TransInfo[port].ip = peerip;
-		TransInfo[port].port = peerport;
-		TransInfo[port].lsn = acceptsock->srv;
+		TransInfo[port].port = peerport;//这个结构体里的port是要访问的port，下标port是我们的transitport
+		TransInfo[port].lsn = acceptsock->srv;//是指向socket的指针
 	}
 
 	return port;
@@ -255,14 +273,14 @@ int SoftFwder::proDrvConnect(SockEx* esock, StarTlv& tlvs) {
 		int sock = *(SOCKET*)tlvs.get_tlv(StarTlv::DRV_CONNECTION_RMTFWDID);
 		//char* savetlv = tlvs.get_tlv(StarTlv::DRV_CONNECTION_RMTFWDID);//
 		//closesocket(localfwdid->s); //触发本sock收到len=0报文用于删除sockex；不在这边删除sockex是为了避免多线程同时删除可能导致的异常
-		delete mapserandpc[sock];
+		delete mapserandpc[sock];//m
 	}
 	//将收到的消息加上socketid的对应关系，然后发送给服务器，通过数据通道？->在onconnect逻辑里
 	return 0;
 }
 int selfServiceConnect::RcvEx(UCHAR* rcvbuf) {
 	DWORD flags = 0; //must initial equal 0, orelse, no message rcv by workthread
-	SockExOL* ov = new SockExOL(this, SockExOL::RCV, (char*)rcvbuf+ 12 + 1 + fwdidlen, GLOBALBUFFERLEN - 12 - 1 - fwdidlen);
+	SockExOL* ov = new SockExOL(this, SockExOL::RCV, (char*)rcvbuf+ 12 + 1 + fwdidlen, databufFERLEN - 12 - 1 - fwdidlen);
 	int rtn = WSARecv(sock, &ov->wsabuffer, 1, NULL, &flags, &ov->overlapped, NULL);
 	//DBG("selfserviceconnect recv: sock: %d, %d, %d", sock, rtn, WSAGetLastError());
 	return 0;
@@ -286,7 +304,7 @@ int selfServiceConnect::onConnect(bool bConnect) {
 		send(dataptr->sock, request.get_final(), request.total, MSG_NOSIGNAL);
 	}
 
-	RcvEx(globalbuf);//收比如3389发送过来的数据
+	RcvEx(databuf);//收比如3389发送过来的数据
 	return 0;
 }
 
@@ -307,11 +325,14 @@ int selfServiceConnect::onRcv(int len) {//接收port发来的
 	//发送给对应的端口？从哪里获取这个？用recv函数接收获取吗？
 	//request.pack_atom(StarTlv::DRV_DATA_FWDID, sizeof(peerFwdId), (char*)&(peerFwdId));//组tlv
 	//request.pack_atom(StarTlv::DRV_DATA_FWDID, sizeof(mapserandpc), (char*)&(mapserandpc));//组tlv
-	//request.pack_atom(StarTlv::DRV_DATA_PAYLOAD, n, (char*)globalbuf);//组payload,payload在rcvbuf中
+	//request.pack_atom(StarTlv::DRV_DATA_PAYLOAD, n, (char*)databuf);//组payload,payload在rcvbuf中
 
 	int headlen = 12 + 1 + fwdidlen; // sizeof(_tlv)*3 + 1 subtlv end with 0 + fwdidlen
-	_tlv* msg = (_tlv*)globalbuf;
+	_tlv* msg = (_tlv*)databuf;
 	msg->type = StarTlv::DRV_DATA;
+
+	//如果我这里的消息是transitport，就是...
+
 
 	//subtlv fwdid
 	_tlv* subtlv = msg + 1;
@@ -329,13 +350,13 @@ int selfServiceConnect::onRcv(int len) {//接收port发来的
 
 	int sendreturn = send(dataptr->sock, (char*)msg, len+headlen, MSG_NOSIGNAL);//发给数据通道
 	//cout << "selfServiceConnect::onRcv send return: " << sendreturn << endl;
-	RcvEx(globalbuf);//
+	RcvEx(databuf);//
 	//procTlvMsg(rcvbuf, msglen);
 	return 0;
 
 
 	//update
-	//直接将port接收来的数据，写入globalbuf中（空出一段内存头）然后
+	//直接将port接收来的数据，写入databuf中（空出一段内存头）然后
 	//
 }
 
