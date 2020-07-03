@@ -16,7 +16,6 @@ struct IpPort {//里面存申请到的远端的ip+port
 };
 
 struct IpPort IpPortt[65540];//这里的下标是本地port
-UCHAR databuf[databufFERLEN];
 
 map<SOCKET, selfServiceConnect*>SoftFwder::mapserandpc;
 
@@ -164,6 +163,9 @@ struct TransInfo_s {
 //SockExTCP* cltChnlPtr = NULL;
 class TransChnl:public SockExTCP {//用来处理客户端发过来的连接（与客户端发数据的连接）
 public:
+	map<UCHAR, SOCKET>mapTransAndSer;
+	UCHAR databuf[databufFERLEN];
+
 	SockExTCP* newAcceptSock(SockExTCP* srv) {//?
 		TransChnl* esock = new TransChnl();
 		esock->srv = srv;
@@ -171,28 +173,37 @@ public:
 	}
 
 	int onConnect(bool bConn) {//处理客户端与我建立的连接
-
-		UINT16 port = getPort();
 		//通过transInfo获取本地的端口和IP并建立连接
 		//建立socket之间的映射关系
 		//这里的onConnect主要是与3389建立连接
+		UINT16 port = getPort();//这个获取到的是transitport
+		TransChnl* transChnlPtr = new TransChnl();
 		sockaddr_in* sock;
-		sock->sin_addr = TransInfo[port].ip;
-		sock->sin_port = TransInfo[port].port;
-		ConnectEx(sock, NULL, sizeof(sock));
+
+		sock->sin_port = port;
+		sock->sin_family = AF_INET6;
+		NBS_CREATESOCKADDR(localAddr, TransInfo[port].ip, TransInfo[port].port);
+
+		bind(transChnlPtr->sock, (SOCKADDR*)&localAddr, sizeof(SOCKADDR_IN));
+
+		transChnlPtr->ConnectEx((struct sockaddr*)sock, NULL, sizeof(sock));
 
 		//然后将这个sock与port建立对应关系 --->这个对应关系要传给谁吗？
-
+		mapTransAndSer[port] = transChnlPtr->sock;
 		return 0;
 	}
 
 	int onRcv(int n) {//这个是处理客户端发来的数据
 		//发到本地sockex
 		//转发
-
 		//send(sock, payload, tlvs.get_len(payload), MSG_NOSIGNAL);//发送给服务port
+		 // sizeof(_tlv)*3 + 1 subtlv end with 0 + fwdidlen
+		_tlv* msg = (_tlv*)databuf;
+		msg->type = StarTlv::DRV_DATA;
+		UINT16 port = getPort();
 
-		RcvEx(&buf);
+		int sendreturn = send(mapTransAndSer[port], (char*)msg, n, MSG_NOSIGNAL);
+		RcvEx(databuf);//
 		return 0;
 	}
 };
@@ -215,7 +226,6 @@ UINT16 driveri::getAvailablePort(NBSDRV_PORTTYPE type, UINT32 peerip, UINT16 pee
 		TransInfo[port].port = peerport;//这个结构体里的port是要访问的port，下标port是我们的transitport
 		TransInfo[port].lsn = acceptsock->srv;//是指向socket的指针
 	}
-
 	return port;
 }
 
