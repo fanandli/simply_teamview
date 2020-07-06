@@ -52,6 +52,7 @@ void sendToTsinghua() {
             socklen_t len = sizeof(addr6);
 
             ((sockaddr_in6*)resip6->ai_addr)->sin6_port = htons(80);
+            
 
             if (connect(sock, (sockaddr*)&resip6->ai_addr, sizeof(sockaddr_in6)) == 0) {
                 getsockname(sock, (sockaddr*)&addr6, &len);

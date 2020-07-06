@@ -154,6 +154,24 @@ int driveri::getPublicAddrr(UINT16 port, SockEx* ctrlchnl, SOCKADDR_IN* intraadd
 }
 
 class TransChnl;
+
+class ClitoTargethostIp6 :public SockExTCP {
+public:
+	//ChnlTCP(SOCKADDR_IN* peeraddr, char* token);
+	//virtual ~ChnlTCP();
+	TransChnl* ToTransChnlBuf;
+	ClitoTargethostIp6(TransChnl* a) {
+		ToTransChnlBuf = a;
+	}
+	virtual int onConnect(bool bConnect);
+	//bool notUsing();
+	virtual int onRcv(int len);
+	//static void FwdtoDataChnl(SockEx* rcvsock, SOCKET datachnl, char peerFwdId, char fwdidlen, char* rcvbuf);
+	UCHAR databuf[databufFERLEN];//存的是3389发过来的
+	//int RcvEx(UCHAR* rcvbuf, int n);
+	// static map<SOCKET, SOCKET>mapTransAndSer;
+};
+
 struct TransInfo_s {
 	SockExTCP* lsn;
 	UINT32 ip;
@@ -163,50 +181,83 @@ struct TransInfo_s {
 //SockExTCP* cltChnlPtr = NULL;
 class TransChnl:public SockExTCP {//用来处理客户端发过来的连接（与客户端发数据的连接）
 public:
-	map<UCHAR, SOCKET>mapTransAndSer;
-	UCHAR databuf[databufFERLEN];
-
+	 map<SOCKET,SOCKET>mapTransAndSer;
+	 UCHAR databuf[databufFERLEN];//存的是客户端要发给3389的内容
+	//SockEx* Transsock = NULL;
+	~TransChnl()
+	{
+		
+	}
 	SockExTCP* newAcceptSock(SockExTCP* srv) {//?
 		TransChnl* esock = new TransChnl();
 		esock->srv = srv;
 		return esock;
 	}
 
-	int onConnect(bool bConn) {//处理客户端与我建立的连接
+	int onConnect(bool bConn) {//这个函数
+		//处理客户端与我建立的连接
 		//通过transInfo获取本地的端口和IP并建立连接
 		//建立socket之间的映射关系
 		//这里的onConnect主要是与3389建立连接
-		UINT16 port = getPort();//这个获取到的是transitport
-		TransChnl* transChnlPtr = new TransChnl();
-		sockaddr_in* sock;
+		UINT16 port = getPort();//这个获取到的是transitport，也有可能是
+	
+		ClitoTargethostIp6* transChnlPtr = new ClitoTargethostIp6(this);//这里的this是指向TransChnl的实例的指针
+		//Transsock = transChnlPtr;
 
-		sock->sin_port = port;
-		sock->sin_family = AF_INET6;
-		NBS_CREATESOCKADDR(localAddr, TransInfo[port].ip, TransInfo[port].port);
+		sockaddr_in* sockLocal = NULL;
+		sockLocal->sin_port = TransInfo[port].port;//获取到要访问的服务的ip+port
+		sockLocal->sin_addr.s_addr = TransInfo[port].ip;  //这个类型转换？
+		sockLocal->sin_family = AF_INET;
 
+		NBS_CREATESOCKADDR(localAddr, 0,0);
 		bind(transChnlPtr->sock, (SOCKADDR*)&localAddr, sizeof(SOCKADDR_IN));
 
-		transChnlPtr->ConnectEx((struct sockaddr*)sock, NULL, sizeof(sock));
+		transChnlPtr->ConnectEx((struct sockaddr*)sockLocal, NULL, sizeof(sockLocal));
 
 		//然后将这个sock与port建立对应关系 --->这个对应关系要传给谁吗？
-		mapTransAndSer[port] = transChnlPtr->sock;
+		//mapserandpc[SET->sock] = SET;
+		mapTransAndSer[transChnlPtr->sock] = sock;
+		//RcvEx(databuf);
+
 		return 0;
 	}
+	
 
-	int onRcv(int n) {//这个是处理客户端发来的数据
+	int onRcv(int n) {//这个是处理客户端发来的数据,发给目标主机中的目的端口
 		//发到本地sockex
 		//转发
 		//send(sock, payload, tlvs.get_len(payload), MSG_NOSIGNAL);//发送给服务port
 		 // sizeof(_tlv)*3 + 1 subtlv end with 0 + fwdidlen
-		_tlv* msg = (_tlv*)databuf;
-		msg->type = StarTlv::DRV_DATA;
-		UINT16 port = getPort();
+		//_tlv* msg = (_tlv*)databuf;
+		//msg->type = StarTlv::DRV_DATA;
+		//UINT16 port = getPort();
 
-		int sendreturn = send(mapTransAndSer[port], (char*)msg, n, MSG_NOSIGNAL);
-		RcvEx(databuf);//
+		int sendreturn = send(mapTransAndSer[sock], (const char*)databuf, n, MSG_NOSIGNAL);//将databufsend出去
+		RcvEx(databuf, sizeof(databuf));//用来告诉操作系统将收到的数据写到databuf里去
 		return 0;
 	}
 };
+
+int ClitoTargethostIp6::onRcv(int n) {//向客户端发送数据
+	send(ToTransChnlBuf->sock, (const char*)databuf, n, MSG_NOSIGNAL);
+	RcvEx(databuf, sizeof(databuf));
+	return 0;
+}
+
+
+int ClitoTargethostIp6::onConnect(bool bConn) {
+	RcvEx(databuf,sizeof(databuf));//将3389发出来的告诉系统写到这里
+	ToTransChnlBuf->RcvEx(ToTransChnlBuf->databuf,sizeof(ToTransChnlBuf->databuf));
+	//RcvEx();
+
+	return 0;
+}
+
+
+//int ClitoTargethostIp6::onRcv(int n){
+	//int sendreturn = send(mapTransAndSer[sock], (const char*)databuf, n, MSG_NOSIGNAL);
+
+//}
 
 //分配transitport
 UINT16 driveri::getAvailablePort(NBSDRV_PORTTYPE type, UINT32 peerip, UINT16 peerport, SockEx* tnl) {
@@ -219,10 +270,10 @@ UINT16 driveri::getAvailablePort(NBSDRV_PORTTYPE type, UINT32 peerip, UINT16 pee
 	acceptsock->srv = new SockExTCP(s, (SOCKADDR*)&addr6, sizeof(addr6), true);//生成一个listen 的socket
 	//这个里面的bind就会随机分一个port，作为transitport
 	SockExTCP::AcceptEx(acceptsock);//侦听
-	UINT16 port = acceptsock->srv->getPort();//
+	UINT16 port = acceptsock->srv->getPort();//这里拿的是transitport
 
 	if (type == DRIVERI_SVCTRANSIT) {
-		TransInfo[port].ip = peerip;
+		TransInfo[port].ip = peerip;//这里存的是service的port
 		TransInfo[port].port = peerport;//这个结构体里的port是要访问的port，下标port是我们的transitport
 		TransInfo[port].lsn = acceptsock->srv;//是指向socket的指针
 	}
@@ -340,9 +391,6 @@ int selfServiceConnect::onRcv(int len) {//接收port发来的
 	int headlen = 12 + 1 + fwdidlen; // sizeof(_tlv)*3 + 1 subtlv end with 0 + fwdidlen
 	_tlv* msg = (_tlv*)databuf;
 	msg->type = StarTlv::DRV_DATA;
-
-	//如果我这里的消息是transitport，就是...
-
 
 	//subtlv fwdid
 	_tlv* subtlv = msg + 1;

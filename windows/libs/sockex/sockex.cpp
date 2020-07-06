@@ -106,8 +106,8 @@ SockExTCP::SockExTCP(SOCKET s, SOCKADDR *saddr, int len, bool server) :SockEx(s)
 /* 调用connectex肯定是异步场景;
 如果需要同步编程,可以用wait结合connect使用 */
 int SockExTCP::ConnectEx(sockaddr *name, char* buffer, int len) {
-  SockExOL* ov = new SockExOL(this, SockExOL::CONNECT);
-  lpfnConnectEx(sock, name, sizeof(SOCKADDR_IN), buffer, len, 0, &ov->overlapped);
+  SockExOL* ov = new SockExOL(this, SockExOL::CONNECT);//this是自身的SockEx
+  lpfnConnectEx(sock, name, sizeof(SOCKADDR_IN), buffer, len, 0, &ov->overlapped);//sock是自身的socket
   return 0;
 }
 
