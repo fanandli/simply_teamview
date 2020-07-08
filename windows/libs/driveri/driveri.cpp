@@ -84,7 +84,7 @@ ctrlchnl:控制通道
 intraddr:入参，intraaddr
 publicaddr:出参，公网地址
 */
-SockExTCP* dataptr = NULL;
+shared_ptr<SockExTCP> dataptr = NULL;
 
 int driveri::getPublicAddrr(UINT16 port, SockEx* ctrlchnl, SOCKADDR_IN* intraaddr, SOCKADDR_IN* publicaddr, NBSDRV_FWDMODE mode) {
 	//根据port查找是否已经申请公网地址
@@ -110,7 +110,8 @@ int driveri::getPublicAddrr(UINT16 port, SockEx* ctrlchnl, SOCKADDR_IN* intraadd
 			send(dataptr->sock, requesttwo.get_final(), requesttwo.total, MSG_NOSIGNAL);//通过数据通道发送申请
 		}
 		else {//数据通道不存在，就走控制通道申请一个数据通道，然后再从数据通道发送申请
-			SockExTCP* SET = new SockExTCP();//
+			shared_ptr<SockExTCP> SET(new SockExTCP());
+			//SockExTCP* SET = new SockExTCP();//
 		   //request.pack_atom(StarTlv::REQUESTPUBLICADDR_CTRLIP, sizeof(UINT32), (char*)&ctrladdr.sin_addr.s_addr);//将ctrladdr加到request中
 			send(ctrlchnl->sock, request.get_final(), request.total, MSG_NOSIGNAL);//发送这个
 			char* msg = sockthread::wait(4);
@@ -184,10 +185,7 @@ public:
 	 map<SOCKET,SOCKET>mapTransAndSer;
 	 UCHAR databuf[databufFERLEN];//存的是客户端要发给3389的内容
 	//SockEx* Transsock = NULL;
-	~TransChnl()
-	{
-		
-	}
+	
 	SockExTCP* newAcceptSock(SockExTCP* srv) {//?
 		TransChnl* esock = new TransChnl();
 		esock->srv = srv;
@@ -200,8 +198,8 @@ public:
 		//建立socket之间的映射关系
 		//这里的onConnect主要是与3389建立连接
 		UINT16 port = getPort();//这个获取到的是transitport，也有可能是
-	
-		ClitoTargethostIp6* transChnlPtr = new ClitoTargethostIp6(this);//这里的this是指向TransChnl的实例的指针
+		shared_ptr<ClitoTargethostIp6> transChnlPtr (new ClitoTargethostIp6(this));
+		//transChnlPtr = new ClitoTargethostIp6(this);//这里的this是指向TransChnl的实例的指针
 		//Transsock = transChnlPtr;
 
 		sockaddr_in* sockLocal = NULL;
@@ -412,16 +410,8 @@ int selfServiceConnect::onRcv(int len) {//接收port发来的
 	//procTlvMsg(rcvbuf, msglen);
 	return 0;
 
-
 	//update
 	//直接将port接收来的数据，写入databuf中（空出一段内存头）然后
 	//
 }
-
-
-
-
-
-
-
 

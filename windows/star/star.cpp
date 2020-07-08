@@ -30,15 +30,17 @@ void sig_alrm(int signo) {
 
 void sendToTsinghua() {
     if (IN6_IS_ADDR_UNSPECIFIED(&g_attr.bestip6)) {
-        WSADATA wsaData;
-        WSAStartup(MAKEWORD(2, 2), &wsaData);
+        //WSADATA wsaData;
+        int iResult = 0;
+        //WSAStartup(MAKEWORD(2, 2), &wsaData);
         struct addrinfo hints;
         struct addrinfo* resip6 = NULL;
         memset(&hints, 0, sizeof(hints));
         hints.ai_family = AF_INET6;
-        hints.ai_flags = SOCK_STREAM;
-        hints.ai_protocol = 0;
-        hints.ai_flags = AI_ALL;
+        //hints.ai_flags = SOCK_STREAM;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = IPPROTO_TCP;
+        //hints.ai_flags = AI_ALL;
         
         //struct hostent* ht = gethostbyname("ipv6.tsinghua.edu.cn");
         int hostres = getaddrinfo("ipv6.tsinghua.edu.cn", NULL, &hints, &resip6);
@@ -47,22 +49,42 @@ void sendToTsinghua() {
         }
         else{
             //cout << (struct sockaddr_in6*)resip6->ai_addr << endl;
-            SOCKET sock = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, 0);
+            SOCKET sock = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP);
             sockaddr_in6 addr6;
             socklen_t len = sizeof(addr6);
 
             ((sockaddr_in6*)resip6->ai_addr)->sin6_port = htons(80);
-            
+            //cout << resip6->ai_addr << " " << resip6->ai_family << endl;
 
-            if (connect(sock, (sockaddr*)&resip6->ai_addr, sizeof(sockaddr_in6)) == 0) {
+            char addrstrr[INET6_ADDRSTRLEN];
+            //DBG("tsinghua ipv6:%s, errno:%s", inet_ntop(AF_INET6, &resip6->ai_addr, addrstrr, INET6_ADDRSTRLEN), strerror(errno));
+
+            inet_ntop(AF_INET6, &((sockaddr_in6*)resip6->ai_addr)->sin6_addr, addrstrr, INET6_ADDRSTRLEN);
+            iResult = connect(sock, (sockaddr*)resip6->ai_addr, sizeof(sockaddr_in6));
+
+            if (iResult == SOCKET_ERROR) {
+                wprintf(L"connect function failed with error: %ld\n", WSAGetLastError());
+                iResult = closesocket(sock);
+                if (iResult == SOCKET_ERROR)
+                    wprintf(L"closesocket function failed with error: %ld\n", WSAGetLastError());
+               // WSACleanup();
+            }
+            //iResult = closesocket(sock);
+            if (iResult == SOCKET_ERROR) {
+                wprintf(L"closesocket function failed with error: %ld\n", WSAGetLastError());
+                //WSACleanup();
+            }
+            if (iResult == 0) {
                 getsockname(sock, (sockaddr*)&addr6, &len);
                 memcpy(&g_attr.bestip6, &addr6.sin6_addr, sizeof(in6_addr));//将获取到的ip6地址复制到这里
-                DBG("get localipv6 ok: ");
+                char addrstrrr[INET_ADDRSTRLEN];
+               // DBG("get localipv6 ok: %s",inet_ntop(AF_INET6, &g_attr.bestip6, addrstrrr,INET_ADDRSTRLEN));
             }
 
             closesocket(sock);
             char addrstr[INET6_ADDRSTRLEN];
             DBG("my ipv6:%s, errno:%s", inet_ntop(AF_INET6, &addr6.sin6_addr, addrstr, INET6_ADDRSTRLEN), strerror(errno));
+            freeaddrinfo(resip6);
 
         }
     }
@@ -73,7 +95,7 @@ int main(int argc, char* argv[]) {
   //daemon(1, 0);
   openlog((char*)"star", LOG_CONS, 0);
   LOG("START VER:%s", VERSION_STR);
-  sendToTsinghua();
+  
 
   //signal(SIGALRM, sig_alrm);
   /* TODO: 修改mac地址，从入参中获得mac地址
@@ -87,6 +109,7 @@ int main(int argc, char* argv[]) {
   sscanf(argv[1], "%02X%02X%02X%02X%02X%02X", &g_attr.mac[0], &g_attr.mac[1], &g_attr.mac[2], &g_attr.mac[3], &g_attr.mac[4], &g_attr.mac[5]);
 
   sockthread mainthread(true);
+  sendToTsinghua();
   new driveri(); //must init driveri first, because CtrlChnl depend driveri
   new CtrlChnl();
   

@@ -343,7 +343,9 @@ char* CtrlChnl::proQuerySvcAddr(json_object* msg, json_object* reply) {
             json_object_object_get_ex(msg, "cltport6", &item);//port
             char* cltport6= (char*)json_object_get_string(item);
             int port6 = stoi(cltport6);
-            cltaddr6.sin6_port = port6;
+            //inet_pton(AF_INET6, cltport6, (void*)&cltaddr6.sin6_port);//yaogai
+            //htons(port6);
+            cltaddr6.sin6_port = htons(port6);
             cltaddr6.sin6_family = AF_INET6;
           
             //将目标主机的ip6+port发给服务器
