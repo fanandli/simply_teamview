@@ -5,15 +5,15 @@
 #include "tlv.h"
 
 service::service(Client* clt, char* host, char* name, UINT16 nport, UCHAR proto, intermode omode) {
-	this->clt = clt;
-	strcpy_s(this->host, sizeof(this->host), host);
-	strcpy_s(type, sizeof(type), name);
-	intraport = nport;
-	mode = omode;
-	fwdChnl = nullptr;
-	list_add_tail(&entry, &clt->allsvc);
-	//interport = 0;
-	this->protocol = proto;
+  this->clt = clt;
+  strcpy_s(this->host, sizeof(this->host), host);
+  strcpy_s(type, sizeof(type), name);
+  intraport = nport;
+  mode = omode;
+  fwdChnl = nullptr;
+  list_add_tail(&entry, &clt->allsvc);
+  //interport = 0;
+  this->protocol = proto;
 
 	// 所有不是本机的service都分配中转port
 	//transitport = 0;
@@ -44,15 +44,14 @@ service::~service() {
 		delete fwdChnl;
 	  }*/
 }
-
 /*
 int service::RequestPublicAddr(void* host) {
-	
-	StarTlv request(StarTlv::REQUESTPUBLICADDR);
-	sockthread::pack_synheader(&request);
-
-	NBS_CREATESOCKADDR(intraAddr, g_attr.bestip, (transitport == 0) ? intraport : transitport);
-	request.pack_atom(StarTlv::REQUESTPUBLICADDR_INTRAADDR, sizeof(SOCKADDR_IN), (char*)&intraAddr);
+ 
+  StarTlv request(StarTlv::REQUESTPUBLICADDR);
+  sockthread::pack_synheader(&request);
+  
+  NBS_CREATESOCKADDR(intraAddr, g_attr.bestip, (transitport == 0) ? intraport : transitport);
+  request.pack_atom(StarTlv::REQUESTPUBLICADDR_INTRAADDR, sizeof(SOCKADDR_IN), (char*)&intraAddr);
 
 	SOCKADDR_IN ctrladdr;
 	socklen_t len = sizeof(SOCKADDR_IN);
@@ -102,6 +101,7 @@ int service::RequestPublicAddr(void* host) {
 */
 
 
+
 int service::getPublicAddr(void* host, SOCKADDR_IN* addr) {
 	/* TODO: 如果不是公网地址场景，调用driveri::getPublicAddr获取地址 */
 	int rtn = 0;
@@ -134,6 +134,8 @@ int service::getPublicAddr(void* host, SOCKADDR_IN* addr) {
 	//addr->sin_port = interport;
 	return rtn;
 }
+
+
 
 int service::updateTransitInfo(int family) {
 	DBG("service::updateTransitInfo, family:%d", family);
@@ -187,15 +189,12 @@ int service::updateTransitInfo(int family) {
 
 
 int service::notinuse() {
-//	if (interport == 0) {
-	//	return 0;
-	//}
-
-	NBS_CREATESOCKADDR(interAddr, 0, 0);
-	if (fwdChnl != nullptr) {
-		StarTlv msg(StarTlv::RELEASEPUBLICADDR);
-		msg.pack_atom(StarTlv::RELEASEPUBLICADDR_INTERADDR, sizeof(interAddr), (char*)&interAddr);
-		send(fwdChnl->sock, msg.get_final(), msg.total, MSG_NOSIGNAL);
+  
+  NBS_CREATESOCKADDR(interAddr, 0,0);
+  if (fwdChnl != nullptr) {
+    StarTlv msg(StarTlv::RELEASEPUBLICADDR);
+    msg.pack_atom(StarTlv::RELEASEPUBLICADDR_INTERADDR, sizeof(interAddr), (char*)&interAddr);
+    send(fwdChnl->sock, msg.get_final(), msg.total, MSG_NOSIGNAL);
 
 		ChnlTCP* usingChnl = (ChnlTCP*)fwdChnl;
 		fwdChnl = nullptr;
@@ -204,15 +203,14 @@ int service::notinuse() {
 		}
 	}
 
-	if (transitport != 0) {
-		NBS_CREATESOCKADDR(intraAddr, 0, transitport);
-		driveri::updateFwdInfo((SOCKADDR*)&intraAddr, DRIVERI_NORMAL);
-	}
-	else {
-		driveri::updateFwdInfo((SOCKADDR*)&interAddr, DRIVERI_NORMAL);
-	}
-	
-	return 0;
+  if (transitport != 0) {
+    NBS_CREATESOCKADDR(intraAddr, 0, transitport);
+    driveri::updateFwdInfo((SOCKADDR*)&intraAddr, DRIVERI_NORMAL);
+  } else {
+    driveri::updateFwdInfo((SOCKADDR*)&interAddr, DRIVERI_NORMAL);
+  }
+  
+  return 0;
 }
 
 service* service::get(char* domain, char* type) {
@@ -240,7 +238,7 @@ appsrv::appsrv(Client* clt, char* host, UINT16 nport) :service(clt, host, (char*
 	addr6.sin6_port = nport;
 
 #ifdef _WINSOCKAPI_
-	srv = new SockExTCP(s, (SOCKADDR*)&addr6, sizeof(addr6), true);
+  //srv = new SockExTCP(s, (SOCKADDR*)&addr6, sizeof(addr6), true);
 #else
 	srv = new SockExListen<AppSrvEsock>(s, (SOCKADDR*)&addr6, sizeof(addr6));
 #endif

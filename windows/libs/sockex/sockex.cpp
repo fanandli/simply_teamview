@@ -72,8 +72,8 @@ SockEx::SockEx(SOCKET s) {
   CreateIoCompletionPort((HANDLE)sock, completePort, (u_long)0, 0); //if the sock is reuse, this function will return 0, errcode is 87; so only bind but not set return value to completePort
 }
 
-int SockExTCP::RcvEx(UCHAR* rcvbuf, int rcvmax) {
-  DWORD flags = MSG_PEEK; //must initial equal 0, orelse, no message rcv by workthread
+int SockExTCP::RcvEx(UCHAR* rcvbuf, int rcvmax, DWORD flags) {
+  //DWORD flags = MSG_PEEK; //must initial equal 0, orelse, no message rcv by workthread
   SockExOL* ov = new SockExOL(this, SockExOL::RCV, (char*)rcvbuf, rcvmax);
   int rtn = WSARecv(sock, &ov->wsabuffer, 1, NULL, &flags, &ov->overlapped, NULL);
  // DBG("wsarcvPEEK:sock:%d, %d, %d", sock, rtn, WSAGetLastError());
@@ -91,14 +91,15 @@ SockExTCP::SockExTCP(SOCKET s, SOCKADDR *saddr, int len, bool server) :SockEx(s)
 
   DWORD opt = TRUE;
   setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
-
+  cout << "SockExTCP sock: " << sock << endl;
   if (saddr != NULL) {
     //if also include std namespace, strong recommend using ::bind, orelse the FUNCTION bind is not the winsock bind
     ::bind(sock, (sockaddr*)(saddr), len); // http://www.cnblogs.com/MRRAOBX/articles/3082997.html, must bind, orelse connectex occur 10022 error;
 
     if (server) {
-      ::listen(sock, SOMAXCONN);
-      SockExTCP::AcceptEx(this);
+      int lisret = ::listen(sock, SOMAXCONN);
+      cout << "sockex listen: " << lisret << " SockEx listen sock:" << getPort() << endl;
+    //  SockExTCP::AcceptEx(this);
     }
   }
 };
@@ -116,12 +117,13 @@ int SockExTCP::ConnectEx(sockaddr *name, char* buffer, int len) {
 SockExTCP* listen = new SockExTCP(INVALID_SOCKET, addr);
 listen->acceptex(listen);
 */
-int SockExTCP::AcceptEx(SockExTCP* lsn) {
-  SockExTCP* tcp = new SockExTCP();
-  tcp->srv = lsn;
-  SockExOL* ov = new SockExOL(tcp, SockExOL::ACCEPT);
+int SockExTCP::AcceptEx(SockExTCP* acceptesock) {
+  //SockExTCP* tcp = new SockExTCP();
+  //tcp->srv = lsn;
+  SockExTCP* lsn = acceptesock->srv;
+  SockExOL* ov = new SockExOL(acceptesock, SockExOL::ACCEPT);
   extern LPFN_ACCEPTEX lpfnAcceptEx;
-  int rtn = lpfnAcceptEx(lsn->sock, tcp->sock, &tcp->buf, 0, sizeof(sockaddr_in) + 16, sizeof(sockaddr_in) + 16, 0, &ov->overlapped); //suggest rcvdatalen equals 0, orelse may cause accecptex not return?
+  int rtn = lpfnAcceptEx(lsn->sock, acceptesock->sock, &acceptesock->buf, 0, sizeof(sockaddr_in6) + 16, sizeof(sockaddr_in6) + 16, 0, &ov->overlapped); //suggest rcvdatalen equals 0, orelse may cause accecptex not return?
   return 0;
 }
 
@@ -195,10 +197,17 @@ int SockEx::procTlvMsg(char* data, int len) { //only reserved for starService.cp
 SockExTCP::~SockExTCP() {
   //onClose();
   //CancelIoEx((HANDLE)sock, nullptr);
-  cout << "--------------sockextcp::~sockextcp-------------" << endl;
+   
+  cout << sock <<"--------------sockextcp::~sockextcp-------------" << endl;
   closesocket(sock);
   return;
 }
+
+SockExTCP* SockExTCP::newAcceptSock(SockExTCP* srv) {
+  SockExTCP* esock = new SockExTCP();
+  esock->srv = srv;
+  return esock;
+};
 
 SockExUDP::SockExUDP(SOCKADDR_IN* saddr, SOCKET s) :SockEx(s) {
   if (s == INVALID_SOCKET) {
@@ -302,7 +311,8 @@ DWORD WINAPI sockRoutine(_In_ LPVOID lpParameter) {
       ((SockExTCP*)sockex)->onConnect(true);
     } else if (op == SockExOL::ACCEPT) { //acceptex rcv len = 0, so no need consider process rcv data while acceptex
       //SO_UPDATE_ACCEPT_CONTEXT, opt must be listenSock and not BOOLEAN, msdn SOL_SOCKET's relative refrence is error
-      ((SockExTCP*)sockex)->AcceptEx(((SockExTCP*)sockex)->srv);
+      SockExTCP* acceptsock = ((SockExTCP*)sockex)->newAcceptSock(((SockExTCP*)sockex)->srv);
+      SockExTCP::AcceptEx(acceptsock);
       ((SockExTCP*)sockex)->onConnect(true);
     } else if (op == SockExOL::RCV){
       if (dwBytesTransfered == 0 || ((SockExTCP*)sockex)->onRcv(dwBytesTransfered) < 0) {

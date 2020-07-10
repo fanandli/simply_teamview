@@ -345,7 +345,7 @@ char* CtrlChnl::proQuerySvcAddr(json_object* msg, json_object* reply) {
             int port6 = stoi(cltport6);
             //inet_pton(AF_INET6, cltport6, (void*)&cltaddr6.sin6_port);//yaogai
             //htons(port6);
-            cltaddr6.sin6_port = htons(port6);
+            cltaddr6.sin6_port = port6;
             cltaddr6.sin6_family = AF_INET6;
           
             //将目标主机的ip6+port发给服务器
@@ -354,7 +354,7 @@ char* CtrlChnl::proQuerySvcAddr(json_object* msg, json_object* reply) {
             inet_ntop(AF_INET6, (const void*)&g_attr.bestip6, targetaddr6, INET6_ADDRSTRLEN);
             json_object_object_add(reply, "ip6", json_object_new_string(targetaddr6));
             json_object_object_add(reply, "port6", json_object_new_int(svc->transitport));
-          
+            cout << "==" << ntohs(svc->transitport) << endl;
             targetsockaddr6.sin6_addr = g_attr.bestip6;
             targetsockaddr6.sin6_port = svc->transitport;
             targetsockaddr6.sin6_family = AF_INET6;

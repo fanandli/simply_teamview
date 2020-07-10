@@ -3,8 +3,7 @@
 #define _WINSOCKAPI_
 #include <atomic>
 #include <condition_variable>
-#include <windows.h>
-#include "Winsock2.h"
+#include "base.h"
 //#include "Mswsock.h"
 using namespace std;
 
@@ -58,12 +57,17 @@ public:
   SockEx(SOCKET);
   virtual ~SockEx() {};
   virtual int procTlvMsg(char* data, int len);
-  UINT16 getPort() {
-    int len = sizeof(SOCKADDR_IN);
-    SOCKADDR_IN addr;
-    int err = getsockname(sock, (SOCKADDR*)&addr, &len);
-
-    return addr.sin_port;
+  UINT16 getPort(int family = AF_INET) {
+      if (family == AF_INET) {
+          SOCKADDR_IN addr;
+          int len = sizeof(SOCKADDR_IN);
+          int err = getsockname(sock, (SOCKADDR*)&addr, &len);
+          return addr.sin_port;
+      }
+      SOCKADDR_IN6 addr6;
+      int len = sizeof(SOCKADDR_IN6);
+      int err = getsockname(sock, (SOCKADDR*)&addr6, &len);
+      return addr6.sin6_port;
   }
 };
 
@@ -75,14 +79,16 @@ public:
   /* 默认是同步, 连接不成功时，调用处会出现超时
   如果入参是异步，连接不成功时回掉 onconnect */
   int ConnectEx(sockaddr *name, char* buffer = NULL, int len = 0);
-  static int AcceptEx(SockExTCP*);
-  int RcvEx(UCHAR*, int n = 4); //4 = sizeof(_tlv)
+  int RcvEx(UCHAR*, int n = 4, DWORD flags = MSG_PEEK); //4 = sizeof(_tlv)
   //int close();
   virtual int onConnect(bool bConnect);
   virtual int onRcv(int n);
   //virtual int onClose() { return 0; };
   SockExTCP(SOCKET s = INVALID_SOCKET, SOCKADDR* saddr=NULL, int len = 0, bool server=false);
   virtual ~SockExTCP();
+
+  static int AcceptEx(SockExTCP*);
+  virtual SockExTCP* newAcceptSock(SockExTCP* srv); 
 };
 
 class SockExUDP :public SockEx {

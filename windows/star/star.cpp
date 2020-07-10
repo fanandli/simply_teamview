@@ -90,6 +90,17 @@ void sendToTsinghua() {
     }
 }
 
+void parseMacStr(char* macstr, UCHAR mac[]) {
+  unsigned short us0, us1, us2;
+  sscanf(macstr, "%04hX%04hX%04hX", &us0, &us1, &us2);
+  mac[0] = (unsigned char)(us0 >> 8);
+  mac[1] = (unsigned char)us0;
+  mac[2] = (unsigned char)(us1 >> 8);
+  mac[3] = (unsigned char)us1;
+  mac[4] = (unsigned char)(us2 >> 8);
+  mac[5] = (unsigned char)us2;
+}
+
 
 int main(int argc, char* argv[]) {
   //daemon(1, 0);
@@ -105,8 +116,8 @@ int main(int argc, char* argv[]) {
   //}
 
   cout << argv[1] << endl;
-  
-  sscanf(argv[1], "%02X%02X%02X%02X%02X%02X", &g_attr.mac[0], &g_attr.mac[1], &g_attr.mac[2], &g_attr.mac[3], &g_attr.mac[4], &g_attr.mac[5]);
+  parseMacStr(argv[1], g_attr.mac);
+
 
   sockthread mainthread(true);
   sendToTsinghua();
@@ -311,8 +322,11 @@ Client::Client(json_object* cltcfg) {
   
   json_object* item;
   if (json_object_object_get_ex(cltcfg, "mac", &item)) {
+
     //https://blog.csdn.net/hs_guanqi/article/details/2258558
-    sscanf(json_object_get_string(item), "%02X%02X%02X%02X%02X%02X", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
+ 
+    parseMacStr((char*)json_object_get_string(item), mac);
+
   } else {
         memcpy(mac, g_attr.mac, sizeof(g_attr.mac));
   }
@@ -1131,9 +1145,9 @@ char* StarAttr::procCommitcfg(json_object* jso, json_object* reply) {
       Client* clt;
       char* macstr = (char*)json_object_get_string(item);
       if (strcmp(macstr, "000000000000") != 0) {
-        char mac[IFHWADDRLEN];
-        sscanf(macstr, "%02X%02X%02X%02X%02X%02X", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
-        clt = Client::getbymac(mac);
+        UCHAR mac[IFHWADDRLEN];
+        parseMacStr(macstr, mac);
+        clt = Client::getbymac((char*)mac);
       } else {
         clt = Client::getbymac((char*)g_attr.mac);
       }
