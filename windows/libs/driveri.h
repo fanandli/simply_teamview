@@ -41,6 +41,7 @@ struct _fwdid_ {
 };
 
 #define _FWDID_MAX_LEN 16
+
 struct _fwdidinfo {
     char peerFwdId[_FWDID_MAX_LEN];
     char fwdidlen;

@@ -353,7 +353,7 @@ char* CtrlChnl::proQuerySvcAddr(json_object* msg, json_object* reply) {
             sockaddr_in6 targetsockaddr6;
             inet_ntop(AF_INET6, (const void*)&g_attr.bestip6, targetaddr6, INET6_ADDRSTRLEN);
             json_object_object_add(reply, "ip6", json_object_new_string(targetaddr6));
-            json_object_object_add(reply, "port6", json_object_new_int(svc->transitport));
+            json_object_object_add(reply, "port6", json_object_new_int(ntohs(svc->transitport)));
             cout << "==" << ntohs(svc->transitport) << endl;
             targetsockaddr6.sin6_addr = g_attr.bestip6;
             targetsockaddr6.sin6_port = svc->transitport;
