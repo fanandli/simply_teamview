@@ -112,9 +112,9 @@ public:
   };
 public:
   WSAOVERLAPPED overlapped;
-  OP_TYPE op;
+  OP_TYPE op;  //这个是放置操作类型的
   WSABUF wsabuffer;
-  SockEx* sockex;
+  SockEx* sockex;  //这个是指向sockEx指针
 
 public:
   SockExOL(SockEx* sockex, OP_TYPE op, char* rcvbuf = nullptr, int rcvmax = 4) { //4 = sizeof(_tlv)

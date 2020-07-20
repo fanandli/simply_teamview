@@ -53,6 +53,7 @@ SockEx::SockEx(SOCKET s) {
     CreateTimerQueueTimer(&coneSockTimer, NULL, ConeSock::_KeepAlive, this, 1000, 1000, WT_EXECUTEDEFAULT);
 #endif
 
+    //获得lpfnAcceptEx，lpfnConnectEx,lpfnDisconnectEx是指针，这些指针的功能就相当于linux中的connect()，accept()的函数
     GUID GuidSockEx = WSAID_ACCEPTEX;
     DWORD dwBytes;
     if (WSAIoctl(sock, SIO_GET_EXTENSION_FUNCTION_POINTER, &GuidSockEx, sizeof(GuidSockEx), &lpfnAcceptEx, sizeof(lpfnAcceptEx), &dwBytes, NULL, NULL) == SOCKET_ERROR) {
@@ -254,13 +255,14 @@ int SockExUDP::onRcv(int n) {
   delete[] rcvbuf;
   return 0;
 }
-
+//处理线程
 DWORD WINAPI sockRoutine(_In_ LPVOID lpParameter) {
   ULONG_PTR *lpContext = NULL;
   OVERLAPPED        *pOverlapped = NULL;
   DWORD            dwBytesTransfered = 0;
 
   while (TRUE) {
+    //这个函数是用来处理收到socket事件的返回值处理
     BOOL bRet = GetQueuedCompletionStatus(completePort, &dwBytesTransfered, (PULONG_PTR)&lpContext, &pOverlapped, INFINITE);
     if (pOverlapped == NULL) {
       LOG("ERR:GetQueue err:%d", GetLastError());
@@ -268,7 +270,7 @@ DWORD WINAPI sockRoutine(_In_ LPVOID lpParameter) {
     }
 
     SockExOL* ol = CONTAINING_RECORD(pOverlapped, SockExOL, overlapped);
-    SockEx *sockex = ol->sockex;
+    SockEx *sockex = ol->sockex;//将完成端口中的sockex，op赋值给栈变量sockex，op
     SockExOL::OP_TYPE op = ol->op;
     delete ol;
 

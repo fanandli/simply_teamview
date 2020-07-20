@@ -237,7 +237,6 @@ public:
 		//RcvEx(databuf);
 		clitoPtr = transChnlPtr;
 		cout << "TransChnl sock: " << sock << " " << this << endl;
-
 		return 0;
 	}
 	int onRcv(int n) {//这个是处理客户端发来的数据,发给目标主机中的目的端口

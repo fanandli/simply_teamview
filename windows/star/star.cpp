@@ -119,14 +119,15 @@ int main(int argc, char* argv[]) {
   parseMacStr(argv[1], g_attr.mac);
 
 
-  sockthread mainthread(true);
+  sockthread mainthread(true);//开启一个thread
   sendToTsinghua();
   new driveri(); //must init driveri first, because CtrlChnl depend driveri
   new CtrlChnl();
   
   NBS_CREATESOCKADDR(server_addr, INADDR_ANY, NBS_SERVER_PORT);
-  g_attr.shellsock = new ShellUdpSock(&server_addr);
-//  g_attr.addrpool = new AddrPool();
+  g_attr.shellsock = new ShellUdpSock(&server_addr);//这里是new出一个udp类型的socket，方便后面使用，
+  //比如自己连接自己的时候，login in服务器的时候等，就是用的udp连接的。
+//g_attr.addrpool = new AddrPool();
   StarAttr::parsecfg();
 
   testnettype();
@@ -188,6 +189,7 @@ int proInnerNetTypeTest(SockEx* esock, StarTlv& tlvs) {
     NBS_CREATESOCKADDR(rmtaddr, srvaddr->s_addr, NBS_SERVER_PORT);
     sendto(g_attr.shellsock->sock, msg.get_final(), msg.total, MSG_NOSIGNAL, (SOCKADDR*)&rmtaddr, sizeof(rmtaddr));
     char* buf = sockthread::wait(2 + 3 * testknownportnum);
+    //wait函数中的getfree函数有可能创建新的线程（如果线程不够用的话）
     DBG("GET GETSELFADDR:%p", buf);
     if (buf == nullptr) {
       return testnettype();
