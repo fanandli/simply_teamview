@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block content %}
+    <ul>
+    {% for ip in ip_list %}
+        <li>{{ip.ip_number }}{{ ip.ip_state }}</li>
+    {% endfor %}
+    </ul>
+{% endblock %}
